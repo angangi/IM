@@ -67,7 +67,7 @@ public class MessageCodecSharable extends MessageToMessageCodec<ByteBuf, Message
         ObjectInputStream objectInputStream = new ObjectInputStream(new ByteArrayInputStream(bytes));
         Message message = (Message) objectInputStream.readObject();
     
-        System.out.println(message.toString());
+        //System.out.println(message.toString());
     
         out.add(message);
     }

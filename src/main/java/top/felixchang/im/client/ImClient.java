@@ -1,5 +1,4 @@
 package top.felixchang.im.client;
-
 import io.netty.bootstrap.Bootstrap;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
@@ -8,16 +7,16 @@ import io.netty.channel.ChannelInitializer;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
-import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
 import io.netty.handler.logging.LogLevel;
 import io.netty.handler.logging.LoggingHandler;
 import lombok.extern.slf4j.Slf4j;
 import top.felixchang.im.message.impl.LoginRequestMessage;
+import top.felixchang.im.message.impl.LoginResponseMessage;
 import top.felixchang.im.protocol.MessageCodecSharable;
 import top.felixchang.im.protocol.ProcotolFrameDecoder;
-
-import java.io.IOException;
 import java.util.Scanner;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 @Slf4j
 public class ImClient {
@@ -28,26 +27,40 @@ public class ImClient {
             bootstrap.channel(NioSocketChannel.class);
             bootstrap.group(group);
             
+            //handler
             MessageCodecSharable CODEC = new MessageCodecSharable();
             LoggingHandler LOGGING_HANDLER = new LoggingHandler(LogLevel.DEBUG);
+    
+            //信号
+            CountDownLatch latch = new CountDownLatch(1);
+            AtomicBoolean LOGIN = new AtomicBoolean();
             
             //The class NioSocketChannel implemented the interface SocketChannel
             bootstrap.handler(new ChannelInitializer<SocketChannel>() {
                 @Override
                 protected void initChannel(SocketChannel ch) throws Exception {
                     ch.pipeline().addLast(new ProcotolFrameDecoder());
-                    ch.pipeline().addLast(LOGGING_HANDLER);
+                    //ch.pipeline().addLast(LOGGING_HANDLER);
                     ch.pipeline().addLast(CODEC);
                     ch.pipeline().addLast("client handler", new ChannelInboundHandlerAdapter() {
-    
                         @Override
                         public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
-                            System.out.println("登录结果：" + msg);
+                            if (msg instanceof LoginResponseMessage) {
+                                LoginResponseMessage responseMessage = (LoginResponseMessage) msg;
+                                boolean success = responseMessage.isSuccess();
+                                if (success) {
+                                    LOGIN.set(true);
+                                } else {
+                                    LOGIN.set(false);
+                                }
+                            }
+                            latch.countDown();
+                            //System.out.println("登录结果：" + msg);
                         }
     
+                        //连接建立后触发
                         @Override
                         public void channelActive(ChannelHandlerContext ctx) throws Exception {
-                            //连接建立后触发
                             new Thread(() -> {
                                 Scanner sc = new Scanner(System.in);
                                 System.out.println("输入用户名和密码");
@@ -55,33 +68,53 @@ public class ImClient {
                                 String password = sc.next();
                                 
                                 LoginRequestMessage loginRequestMessage = new LoginRequestMessage(username, password);
-                                System.out.println(loginRequestMessage);
+                                //System.out.println(loginRequestMessage);
                                 
                                 ctx.writeAndFlush(loginRequestMessage);
     
-                                System.out.println("等待");
+                                System.out.println("等待...");
+                                //try {
+                                //    System.in.read();
+                                //} catch (IOException e) {
+                                //    e.printStackTrace();
+                                //}
                                 try {
-                                    System.in.read();
-                                } catch (IOException e) {
+                                    latch.await();
+                                } catch (InterruptedException e) {
                                     e.printStackTrace();
                                 }
+                                
+                                if (!LOGIN.get()) {
+                                    ctx.channel().close();
+                                    return;
+                                } else {
+                                    System.out.println("登录成功");
+                                }
     
-                            }, "system in").start();
-                            //super.channelActive(ctx);
+                                System.out.println("==================================");
+                                System.out.println("send [username] [content]");
+                                System.out.println("gsend [group name] [content]");
+                                System.out.println("gcreate [group name] [m1,m2,m3...]");
+                                System.out.println("gmembers [group name]");
+                                System.out.println("gjoin [group name]");
+                                System.out.println("gquit [group name]");
+                                System.out.println("quit");
+                                System.out.println("==================================");
+    
+                            }, "login").start();
                         }
     
                         // 在连接断开时触发
                         @Override
                         public void channelInactive(ChannelHandlerContext ctx) throws Exception {
                             log.debug("连接已经断开，按任意键退出..");
-                            
                         }
     
                         // 在出现异常时触发
                         @Override
                         public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
-                            log.debug("连接已经断开，按任意键退出..{}", cause.getMessage());
-                            
+                            //log.debug("连接已经断开，按任意键退出..{}", cause.getMessage());
+                            log.debug("连接已经断开，按任意键退出..");
                         }
                     });
                 }

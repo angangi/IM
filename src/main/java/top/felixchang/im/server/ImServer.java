@@ -43,7 +43,7 @@ public class ImServer {
                 @Override
                 protected void initChannel(SocketChannel ch) throws Exception {
                     ch.pipeline().addLast(new ProcotolFrameDecoder());
-                    ch.pipeline().addLast(LOGGING_HANDLER);
+                    //ch.pipeline().addLast(LOGGING_HANDLER);
                     ch.pipeline().addLast(CODEC);
                     ch.pipeline().addLast(new SimpleChannelInboundHandler<LoginRequestMessage>() {
                         @Override
