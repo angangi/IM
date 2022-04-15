@@ -10,11 +10,14 @@ import io.netty.channel.socket.nio.NioSocketChannel;
 import io.netty.handler.logging.LogLevel;
 import io.netty.handler.logging.LoggingHandler;
 import lombok.extern.slf4j.Slf4j;
-import top.felixchang.im.message.impl.LoginRequestMessage;
-import top.felixchang.im.message.impl.LoginResponseMessage;
+import top.felixchang.im.message.impl.*;
 import top.felixchang.im.protocol.MessageCodecSharable;
 import top.felixchang.im.protocol.ProcotolFrameDecoder;
+
+import java.util.Arrays;
+import java.util.HashSet;
 import java.util.Scanner;
+import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -32,7 +35,7 @@ public class ImClient {
             LoggingHandler LOGGING_HANDLER = new LoggingHandler(LogLevel.DEBUG);
     
             //信号
-            CountDownLatch latch = new CountDownLatch(1);
+            CountDownLatch WAIT_LOGIN = new CountDownLatch(1);
             AtomicBoolean LOGIN = new AtomicBoolean();
             
             //The class NioSocketChannel implemented the interface SocketChannel
@@ -45,6 +48,8 @@ public class ImClient {
                     ch.pipeline().addLast("client handler", new ChannelInboundHandlerAdapter() {
                         @Override
                         public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
+                            log.debug("{}", msg);
+                            
                             if (msg instanceof LoginResponseMessage) {
                                 LoginResponseMessage responseMessage = (LoginResponseMessage) msg;
                                 boolean success = responseMessage.isSuccess();
@@ -53,9 +58,8 @@ public class ImClient {
                                 } else {
                                     LOGIN.set(false);
                                 }
+                                WAIT_LOGIN.countDown();
                             }
-                            latch.countDown();
-                            //System.out.println("登录结果：" + msg);
                         }
     
                         //连接建立后触发
@@ -64,8 +68,8 @@ public class ImClient {
                             new Thread(() -> {
                                 Scanner sc = new Scanner(System.in);
                                 System.out.println("输入用户名和密码");
-                                String username = sc.next();
-                                String password = sc.next();
+                                String username = sc.nextLine();
+                                String password = sc.nextLine();
                                 
                                 LoginRequestMessage loginRequestMessage = new LoginRequestMessage(username, password);
                                 //System.out.println(loginRequestMessage);
@@ -79,7 +83,7 @@ public class ImClient {
                                 //    e.printStackTrace();
                                 //}
                                 try {
-                                    latch.await();
+                                    WAIT_LOGIN.await();
                                 } catch (InterruptedException e) {
                                     e.printStackTrace();
                                 }
@@ -91,15 +95,56 @@ public class ImClient {
                                     System.out.println("登录成功");
                                 }
     
-                                System.out.println("==================================");
-                                System.out.println("send [username] [content]");
-                                System.out.println("gsend [group name] [content]");
-                                System.out.println("gcreate [group name] [m1,m2,m3...]");
-                                System.out.println("gmembers [group name]");
-                                System.out.println("gjoin [group name]");
-                                System.out.println("gquit [group name]");
-                                System.out.println("quit");
-                                System.out.println("==================================");
+                                while (true) {
+                                    System.out.println("==================================");
+                                    System.out.println("send [username] [content]");
+                                    System.out.println("gsend [group name] [content]");
+                                    System.out.println("gcreate [group name] [m1,m2,m3...]");
+                                    System.out.println("gmembers [group name]");
+                                    System.out.println("gjoin [group name]");
+                                    System.out.println("gquit [group name]");
+                                    System.out.println("quit");
+                                    System.out.println("==================================");
+    
+                                    String command = sc.nextLine();
+                                    String[] s = command.split(" ");
+                                    
+                                    System.out.println(Arrays.toString(s));
+                                    
+                                    switch (s[0]) {
+                                        case "send" :
+                                            ChatRequestMessage chatRequestMessage = new ChatRequestMessage(username, s[1], s[2]);
+                                            ctx.writeAndFlush(chatRequestMessage);
+                                            break;
+                                        case "gsend" :
+                                            GroupChatRequestMessage groupChatRequestMessage = new GroupChatRequestMessage(username, s[1], s[2]);
+                                            ctx.writeAndFlush(groupChatRequestMessage);
+                                            break;
+                                        case "gcreate" :
+                                            Set<String> set = new HashSet<>(Arrays.asList(s[2].split(",")));
+                                            GroupCreateRequestMessage groupCreateRequestMessage = new GroupCreateRequestMessage(s[1], set);
+                                            ctx.writeAndFlush(groupCreateRequestMessage);
+                                            break;
+                                        case "gmembers" :
+                                            GroupMembersRequestMessage groupMembersRequestMessage = new GroupMembersRequestMessage(s[1]);
+                                            ctx.writeAndFlush(groupMembersRequestMessage);
+                                            break;
+                                        case "gjoin" :
+                                            GroupJoinRequestMessage groupJoinRequestMessage = new GroupJoinRequestMessage(username, s[1]);
+                                            ctx.writeAndFlush(groupJoinRequestMessage);
+                                            break;
+                                        case "gquit" :
+                                            GroupQuitRequestMessage groupQuitRequestMessage = new GroupQuitRequestMessage(username, s[1]);
+                                            ctx.writeAndFlush(groupQuitRequestMessage);
+                                            break;
+                                        case "quit" :
+                                            ctx.channel().close();
+                                            return;
+                                        default:
+                                            System.out.println("you have input " + s[0]);
+                                            break;
+                                    }
+                                }
     
                             }, "login").start();
                         }

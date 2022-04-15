@@ -9,6 +9,7 @@ public class UserServiceMemImpl implements UserService {
     private static Map<String, String> users = new HashMap<>();
     static {
         users.put("felix", "123");
+        users.put("chang", "123");
     }
     
     @Override
