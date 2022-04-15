@@ -1,18 +1,24 @@
 package top.felixchang.im.server.session;
 
-import java.nio.channels.Channel;
+import io.netty.channel.Channel;
+
 import java.util.List;
 import java.util.Set;
 
 /**
  * 聊天群会话的管理接口
  */
+
+/**
+ * 聊天组会话管理接口
+ */
 public interface GroupSession {
+    
     /**
-     * 新建聊天组
+     * 创建一个聊天组, 如果不存在才能创建成功, 否则返回 null
      * @param name 组名
-     * @param members 成员名集合
-     * @return 组名不存在则新建Group对象，存在则返回null
+     * @param members 成员
+     * @return 成功时返回组对象, 失败返回 null
      */
     Group createGroup(String name, Set<String> members);
     
@@ -20,36 +26,37 @@ public interface GroupSession {
      * 加入聊天组
      * @param name 组名
      * @param member 成员名
-     * @return 组名不存在则返回null，存在则返回Group对象
+     * @return 如果组不存在就创建，并返回null, 否则返回以前的组对象
      */
-    Group joinGroup(String name, String member);
+    Group joinMember(String name, String member);
     
     /**
-     * 移除群成员
+     * 移除组成员
      * @param name 组名
      * @param member 成员名
-     * @return 组名不存在返回null，存在返回Group对象（成员存在与否无所谓，会尝试进行成员删除）
+     * @return 如果组不存在返回 null, 否则返回组对象
      */
     Group removeMember(String name, String member);
     
     /**
-     * 移除群组
-     * @param name 群组名
-     * @return 组名不存在返回null，存在返回Group对象
+     * 移除聊天组
+     * @param name 组名
+     * @return 如果组不存在返回 null, 否则返回组对象
      */
     Group removeGroup(String name);
     
     /**
-     * 获取群组成员
+     * 获取组成员
      * @param name 组名
-     * @return 群组成员集合
+     * @return 成员集合, 如果群不存在或没有成员会返回 empty set
      */
     Set<String> getMembers(String name);
     
     /**
-     * 获取群组成员的channel（也就是往群组内发消息的时候调用）
-     * @param name 群组名
-     * @return 群成员对应的channel集合
+     * 获取组成员的 channel 集合, 只有在线的 channel 才会返回
+     * @param name 组名
+     * @return 成员 channel 集合
      */
-    List<Channel> getMemberChannel(String name);
+    List<Channel> getMembersChannel(String name);
 }
+

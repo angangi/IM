@@ -32,7 +32,5 @@ public class ChatRequestMessageInboundHandler extends SimpleChannelInboundHandle
             //没法发送，给发送方发送一个单聊回应
             ctx.channel().writeAndFlush(new ChatResponseMessage(false, "找不到对方channel"));
         }
-        
-    
     }
 }

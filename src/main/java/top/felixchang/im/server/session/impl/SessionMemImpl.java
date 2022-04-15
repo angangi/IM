@@ -20,6 +20,7 @@ public class SessionMemImpl implements Session {
     public void unbind(Channel channel) {
         String username = channelToUsernameMap.remove(channel);
         usernameToChannelMap.remove(username);
+        //todo channelToUsernameMap也需要删除
     }
     
     @Override
